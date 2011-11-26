@@ -1,0 +1,79 @@
+package orderlord.website
+
+import java.sql.Time
+import java.util.List;
+
+
+class Scheduledorder {
+
+	int day
+	Time time
+	
+	int hour
+	int minute
+	String dayOfWeek
+	//int storeId
+	//int customerId
+	Pendingorder pendingorder
+	
+	static transients = ['dayOfWeek', 'hour', 'minute']
+	
+	static belongsTo = [store:Store, customer:Customer]
+	
+//	static hasOne = [pendingorder:Pendingorder]
+		
+	static mapping = {
+		sort day:'asc'
+		
+		table 'Scheduling_info'
+		day column: 'day'
+		time column: 'timeInDay'
+		store column: 'store_id'
+		customer column: 'customer_id'
+		pendingorder column: 'uncommittedOrder_id'
+	}
+	
+    static constraints = {
+		day inList:[1,2,3,4,5,6,7]
+		hour inList:0..23
+		minute inList:0..59
+		time()  //*** play with time
+		store()
+		customer()
+		pendingorder()
+    }
+	
+	String toString(){ //*** make this into a separate service
+		switch (day){
+			case 1:
+				dayOfWeek = "Monday"
+				break
+			case 2:
+				dayOfWeek = "Tuesday"
+				break
+			case 3:
+				dayOfWeek = "Wednesday"
+				break
+			case 4:
+				dayOfWeek = "Thursday"
+				break
+			case 5:
+				dayOfWeek = "Friday"
+				break
+			case 6:
+				dayOfWeek = "Saturday"
+				break
+			case 7:
+				dayOfWeek = "Sunday"
+				break
+		}
+		
+		"ScheduledOrder due every ${dayOfWeek} at ${time}" //*** possibly add info from the referenced pending order ** and fix time
+	}
+	
+//	int hour = Integer.parseInt(params.hour)
+//	int minute = Integer.parseInt(params.minute)
+//	Time sqlTime = new Time(hour, minute, 0)
+//	scheduledorderInstance.time = sqlTime
+	
+}

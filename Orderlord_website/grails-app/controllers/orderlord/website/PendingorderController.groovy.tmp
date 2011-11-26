@@ -1,0 +1,101 @@
+package orderlord.website
+
+class PendingorderController2 {
+
+    static allowedMethods = [save: "POST", update: "POST", delete: "POST"]
+
+    def index = {
+        redirect(action: "list", params: params)
+    }
+
+    def list = {
+        //params.max = Math.min(params.max ? params.int('max') : 10, 100)
+		params.max = 50
+        [pendingorderInstanceList: Pendingorder.list(params), pendingorderInstanceTotal: Pendingorder.count()]
+    }
+
+    def create = {
+        def pendingorderInstance = new Pendingorder()
+        pendingorderInstance.properties = params
+        return [pendingorderInstance: pendingorderInstance]
+    }
+
+    def save = {
+        def pendingorderInstance = new Pendingorder(params)
+        if (pendingorderInstance.save(flush: true)) {
+            flash.message = "${message(code: 'default.created.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), pendingorderInstance.id])}"
+            redirect(action: "show", id: pendingorderInstance.id)
+        }
+        else {
+            render(view: "create", model: [pendingorderInstance: pendingorderInstance])
+        }
+    }
+
+    def show = {
+        def pendingorderInstance = Pendingorder.get(params.id)
+        if (!pendingorderInstance) {
+            flash.message = "${message(code: 'default.not.found.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), params.id])}"
+            redirect(action: "list")
+        }
+        else {
+            [pendingorderInstance: pendingorderInstance]
+        }
+    }
+
+    def edit = {
+        def pendingorderInstance = Pendingorder.get(params.id)
+        if (!pendingorderInstance) {
+            flash.message = "${message(code: 'default.not.found.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), params.id])}"
+            redirect(action: "list")
+        }
+        else {
+            return [pendingorderInstance: pendingorderInstance]
+        }
+    }
+
+    def update = {
+        def pendingorderInstance = Pendingorder.get(params.id)
+        if (pendingorderInstance) {
+            if (params.version) {
+                def version = params.version.toLong()
+                if (pendingorderInstance.version > version) {
+                    
+                    pendingorderInstance.errors.rejectValue("version", "default.optimistic.locking.failure", [message(code: 'pendingorder.label', default: 'Pendingorder')] as Object[], "Another user has updated this Pendingorder while you were editing")
+                    render(view: "edit", model: [pendingorderInstance: pendingorderInstance])
+                    return
+                }
+            }
+            pendingorderInstance.properties = params
+            if (!pendingorderInstance.hasErrors() && pendingorderInstance.save(flush: true)) {
+                flash.message = "${message(code: 'default.updated.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), pendingorderInstance.id])}"
+                redirect(action: "show", id: pendingorderInstance.id)
+            }
+            else {
+                render(view: "edit", model: [pendingorderInstance: pendingorderInstance])
+            }
+        }
+        else {
+            flash.message = "${message(code: 'default.not.found.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), params.id])}"
+            redirect(action: "list")
+        }
+    }
+
+    def delete = {
+        def pendingorderInstance = Pendingorder.get(params.id)
+        if (pendingorderInstance) {
+            try {
+                pendingorderInstance.delete(flush: true)
+                flash.message = "${message(code: 'default.deleted.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), params.id])}"
+                redirect(action: "list")
+            }
+            catch (org.springframework.dao.DataIntegrityViolationException e) {
+                flash.message = "${message(code: 'default.not.deleted.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), params.id])}"
+                redirect(action: "show", id: params.id)
+            }
+        }
+        else {
+            flash.message = "${message(code: 'default.not.found.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), params.id])}"
+            redirect(action: "list")
+        }
+    }
+}
