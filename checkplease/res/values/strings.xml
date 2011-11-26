@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hello">Hello World, ApiDemos!</string>
+    <string name="app_name">Order Please</string>
+    <string name="login_activity_loginfail_text_both">Please enter a valid username/password</string>
+    <string name="login_activity_loginfail_text_pwonly">Please enter a valid password</string>
+    <string name="login_activity_newaccount_text">Login using appropriate service</string>
+    <string name="login_activity_loginfail_text_pwmissing">We have an account but no password</string>
+    <string name="ui_activity_authenticating">Authenticating</string>
+    <string name="item_id">item_id</string>
+    <string name="store_id">store_id</string>
+    <string name="user_id">user_id</string>
+    <string name="balance">balance</string>
+    <string name="version">version</string>
+    <string name="etp">etp</string>
+    <string name="item_description">description</string>
+    <string name="item_pic_link">item_pic_link</string>
+    <string name="username">username</string>
+    <string name="password">password</string>
+    <string name="email">email</string>
+    <string name="firstname">firstName</string>
+    <string name="lastname">lastName</string>
+    <string name="id_db">id</string>
+    <string name="version_db">Version</string>
+    <string name="store_name_db">Store_Name</string>
+    <string name="store_pic_db">Link_to_pic</string>
+    <string name="store_address">address</string>
+    <string name="longitude">longitude</string>
+    <string name="latitude">latitude</string>
+</resources>

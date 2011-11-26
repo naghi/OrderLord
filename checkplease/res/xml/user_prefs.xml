@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+    <EditTextPreference android:summary="Edit Username" android:title="User Name" android:key="user_name"/>
+    <EditTextPreference android:summary="Edit Password" android:title="Password" android:key="password"/>
+    <EditTextPreference android:summary="Edit Balance" android:title="Balance" android:key="balance"/>
+    <EditTextPreference android:summary="Edit First Name" android:title="First Name" android:key="first_name"/>
+    <EditTextPreference android:summary="Edit Last Name" android:title="Last Name" android:key="last_name"/>
+
+    
+
+</PreferenceScreen>

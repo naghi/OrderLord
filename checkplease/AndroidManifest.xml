@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+      package="com.checkplease"
+      android:versionCode="1"
+      android:versionName="1.0">
+      <uses-sdk android:minSdkVersion="8" />
+      <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+	  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+      <uses-permission android:name="android.permission.INTERNET" />
+      <application android:icon="@drawable/icon" android:label="@string/app_name" android:vmSafeMode="true" android:allowTaskReparenting="true" android:debuggable="true">
+        
+        <activity android:name=".Login" android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <uses-library android:name="com.google.android.maps" />
+        <activity android:name="HomeScreen"></activity>
+        <activity android:name="CreateUser"></activity>
+        <activity android:name="SearchTabWidget"></activity>
+        <activity android:name="SearchListView"></activity>
+        <activity android:name="SearchMapView" android:theme="@android:style/Theme.NoTitleBar"></activity>
+        <activity android:name="AccountActivity"></activity>
+        <activity android:name="CartActivity"></activity>
+        <activity android:name="ScheduleActivity"></activity>
+        <activity android:name="Restaurant_Items_Activity"></activity>
+		
+    </application>
+</manifest>
