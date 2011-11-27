@@ -6,6 +6,7 @@ class PendingorderController {
 
 	def orderCalculatorService
 	def pendingorderPostService
+	def localHostFinderService
 	
 	void callFlashMessage(String minTime, String maxTime){
 		flash.message = "The specified time does not fall between the allowed values of '${minTime}' and '${maxTime}'"
@@ -20,12 +21,24 @@ class PendingorderController {
         //params.max = Math.min(params.max ? params.int('max') : 10, 100)
 		params.max = 50
 		
+		if (session.store == null){
+			render ("You don't have permissions to access this resource or you are not logged in!")
+			return
+		}
+		
+		def localHostAddress = localHostFinderService.figureOutLocalHostAddress()
+		
+		def viewType = "list"
+		if (params.refreshType == "ajax")
+			viewType = "pendingbody"
+
 		def pendingorders = Pendingorder.list(params)
 		for (pendingorder in pendingorders){
 			pendingorder.orderType = pendingorder.figureOutOrderType()
 		}
 		
-        [pendingorderInstanceList: pendingorders, pendingorderInstanceTotal: Pendingorder.count()]
+		render(view: "${viewType}", model: [localHostAddress: localHostAddress, pendingorderInstanceList: Pendingorder.list(params), pendingorderInstanceTotal: Pendingorder.count()])
+        	
     }
 
     def create = {
@@ -93,15 +106,18 @@ class PendingorderController {
                     return
                 }
             }
+			
+			Date oldPickupTime = pendingorderInstance.pickupTime
             pendingorderInstance.properties = params
 				
 			pendingorderInstance.totalCost = orderCalculatorService.calculateTotalCost(pendingorderInstance.items)
 			pendingorderInstance.orderEtp = orderCalculatorService.calculateOrderEtp(pendingorderInstance.items)
 			
-			pendingorderInstance.figureOutPickupTime()
+//			pendingorderInstance.figureOutPickupTime()
 			
 			if ( pendingorderInstance.pickupTime.before(pendingorderInstance.minDate()) || pendingorderInstance.pickupTime.after(pendingorderInstance.maxDate()) ){
 				callFlashMessage("${pendingorderInstance.minDate()}", "${pendingorderInstance.maxDate()}")
+				pendingorderInstance.pickupTime = oldPickupTime
 				render(view: "edit", model: [pendingorderInstance: pendingorderInstance])
 				return
 			}
@@ -109,16 +125,20 @@ class PendingorderController {
 			pendingorderInstance.figureOutScheduleDay()
 			
             if (!pendingorderInstance.hasErrors() && pendingorderInstance.save(flush: true)) {
-                flash.message = "${message(code: 'default.updated.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), pendingorderInstance.id])}"
+				if (pendingorderInstance.orderEtp == 0)
+					flash.message = "Pendingorder ${pendingorderInstance.id} updated. No items were selected, thus pickupTime is still 6 days from now!"
+				else
+                	flash.message = "${message(code: 'default.updated.message', args: [message(code: 'pendingorder.label', default: 'Pendingorder'), pendingorderInstance.id])}"
 				
-				//println "aaaaaaaaaaaaa"
 				if (pendingorderInstance.orderEtp > 0)
 					pendingorderPostService.interruptSleep()
 		
                 redirect(action: "show", id: pendingorderInstance.id)
+				return
             }
             else {
                 render(view: "edit", model: [pendingorderInstance: pendingorderInstance])
+				return
             }
         }
         else {

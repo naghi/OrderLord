@@ -14,17 +14,17 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
 
-import components.Tables.Uncommitted_Orders;
+import components.Table.Uncommitted_Orders;
 
 public enum StoredProcedures
 {
-    Find_Stores_Within_Radius()
+    Search_For_Stores()
     {
-        private final static String Drop_Find_Stores_Within_Radius =
-                "DROP PROCEDURE IF EXISTS `check-please2`.`Find_Stores_Within_Radius`;";
+        private final static String Drop_Search_For_Stores =
+                "DROP PROCEDURE IF EXISTS `check-please2`.`Search_For_Stores`;";
 
-        private final static String Find_Stores_Within_Radius =
-                " CREATE PROCEDURE `check-please2`.`Find_Stores_Within_Radius`" +
+        private final static String Search_For_Stores =
+                " CREATE PROCEDURE `check-please2`.`Search_For_Stores`" +
                         "(" +
                         "IN in_lat FLOAT, " +
                         "IN in_lon FLOAT, " +
@@ -40,6 +40,7 @@ public enum StoredProcedures
                         " SELECT id, version, name, address, latitude, longitude, phoneNumber, pictureLink, 6271 * 2 * ASIN(SQRT(POWER(SIN((in_lat - latitude) * pi()/180 / 2), 2) + COS(in_lat * pi()/180) *COS(latitude * pi()/180) * POWER(SIN((in_lon - longitude) * pi()/180 / 2), 2))) AS distance" +
                         " FROM Stores" +
                         " WHERE longitude BETWEEN lon1 AND lon2 AND latitude BETWEEN lat1 AND lat2" +
+                        " AND NOT role = 'admin'" +
                         " HAVING distance <= in_max_distance" +
                         " ORDER BY distance ASC" +
                         " LIMIT 0,100;\n" +
@@ -48,14 +49,14 @@ public enum StoredProcedures
         @Override
         public void drop()
         {
-            executeStatement(Drop_Find_Stores_Within_Radius);
+            executeStatement(Drop_Search_For_Stores);
         }
 
         @Override
         public void create()
         {
             drop();
-            executeStatement(Find_Stores_Within_Radius);
+            executeStatement(Search_For_Stores);
         }
 
         @Override
@@ -71,9 +72,9 @@ public enum StoredProcedures
 
                 cs = conn.prepareCall("{CALL " + components.Responder.Search_For_Stores.name() + "(?, ?, ?)}");
 
-                cs.setDouble(1, (Double) params.myItems.get(0).right());
-                cs.setDouble(2, (Double) params.myItems.get(1).right());
-                cs.setDouble(3, (Double) params.myItems.get(2).right());
+                cs.setDouble(1, (Double) params.myItems.get(0).value());
+                cs.setDouble(2, (Double) params.myItems.get(1).value());
+                cs.setDouble(3, (Double) params.myItems.get(2).value());
 
                 cs.execute();
 
@@ -83,7 +84,7 @@ public enum StoredProcedures
                 
                 JSONObject result = new JSONObject();
 
-                result.put(Tables.Stores.getName(), stores);
+                result.put(Table.Stores.getName(), stores);
 
                 return result;
             }
@@ -274,73 +275,106 @@ public enum StoredProcedures
     {
         private final static String Drop_Process_Orders = 
                 "DROP PROCEDURE IF EXISTS `check-please2`.`Process_Orders`;";
-
+        
         private final static String Process_Orders = 
-                "CREATE PROCEDURE `check-please2`.`Process_Orders`" +
-                        "(" +
-                        "OUT sleepTime BIGINT UNSIGNED" +
-                        ")" +
+                
+                " CREATE PROCEDURE `check-please2`.`Process_Orders`" +
+                        "(OUT sleepTime BIGINT UNSIGNED)" +
                         " proc_label:BEGIN" +
+                        
                         /* Cleanup step (start): Drop all temporary tables */
-                        " DROP TABLE IF EXISTS `check-please2`.`UO`;" + 
-                        " DROP TABLE IF EXISTS `check-please2`.`UOI`;" + 
-                        " DROP TABLE IF EXISTS `check-please2`.`SO`;" + 
-                        " DROP TABLE IF EXISTS `check-please2`.`SOI`;" +
+                        
+                        " DROP TABLE IF EXISTS `check-please2`.`ORDER_TO_MOVE_OR_COPY`;" +
+                        " DROP TABLE IF EXISTS `check-please2`.`ITEMS_TO_MOVE_OR_COPY`;" +
+                        
                         /* Set constant step: NOW() */
+                        
                         " SET @NowDateTime:=(SELECT NOW());" +
                         " SET @NowMinutes:=(SELECT MINUTE(@Now) + 60*HOUR(@Now));" +
                         " SET @OneDay:=86400000;" +
-                        /* Gathering step #1 (orders): SELECT (Time_is_up) */
-                        " CREATE TEMPORARY TABLE `check-please2`.`UO`" +
-                        " SELECT * FROM `check-please2`.`Uncommitted_Orders` AS `uo`" +
-                        " WHERE `uo`.`pickupTime` - INTERVAL `uo`.`etp` MINUTE < @NowDateTime AND NOT `uo`.`scheduleDay` = 0;" +
-                        " CREATE TEMPORARY TABLE `check-please2`.`SO`" +
-                        " SELECT * FROM `check-please2`.`Uncommitted_Orders` AS `uo`" +
-                        " WHERE `uo`.`pickupTime` - INTERVAL `uo`.`etp` MINUTE < @NowDateTime AND `uo`.`scheduleDay` = 0;" +
-                        /* Possible exit step: IF (Nothing to move) ==> (EXIT) */
-                        " SELECT COUNT(*) INTO @MoveCountU FROM `check-please2`.`UO`;" +
-                        " SELECT COUNT(*) INTO @MoveCountS FROM `check-please2`.`SO`;" +
-                        " IF @MoveCountO + @MoveCountS = 0 THEN" +           
-                        " SELECT GREATEST(0, @OneDay) INTO `sleepTime`;" +
+                        
+                        /* Sleep for a day if there is nothing in the database */
+                        
+                        " SELECT COUNT(*) INTO @cnt FROM `check-please2`.`Uncommitted_Orders`;" +
+                        
+                        " IF @cnt = 0 THEN" +
+                        " SELECT GREATEST(0, @OneDay) INTO `sleepTime` FROM `check-please2`.`Uncommitted_Orders`;" +
                         " LEAVE proc_label;" +
                         " END IF;" +
-                        /* Gathering step #2 (items): SELECT (!Scheduled && Time_is_up) */
-                        " CREATE TEMPORARY TABLE `check-please2`.`UOI`" +
-                        " SELECT uoi.*" +
-                        " FROM `check-please2`.`Uncommitted_Orders_Items` AS `uoi`, `check-please2`.`UO` AS `uo`" +
-                        " WHERE `uoi`.`order_id` = `uo`.`id`;" +
-                        " CREATE TEMPORARY TABLE `check-please2`.`SOI`" +
-                        " SELECT `uoi`.*" +
-                        " FROM `check-please2`.`Uncommitted_Orders_Items` AS `uoi`, `check-please2`.`SO` AS `so`" +
-                        " WHERE `uoi`.`order_id` = `so`.`id`;" +
-                        /* Copy step: (Uncommitted && Time_is_up) ==> (Committed) */
+                        
+                        /* Else gather the things to move */
+                        
+                        " CREATE TEMPORARY TABLE `check-please2`.`ORDER_TO_MOVE_OR_COPY`" +
+                        " SELECT * FROM `check-please2`.`Uncommitted_Orders` AS `uo`" +
+                        " WHERE `uo`.`pickupTime` - INTERVAL `uo`.`etp` MINUTE < @NowDateTime LIMIT 1;" +
+                        
+                        " SELECT COUNT(*) INTO @moveCnt FROM `check-please2`.`ORDER_TO_MOVE_OR_COPY`;" +
+                        
+                        " IF @moveCnt = 0 THEN" +
+                        " SELECT LEAST(@OneDay, 1000*MIN(TIMESTAMPDIFF(SECOND, @NowDateTime, `uo`.`pickupTime`) - 60*`uo`.`etp`))" +
+                        " INTO `sleepTime`" +
+                        " FROM `check-please2`.`Uncommitted_Orders` AS `uo`;" +
+                        " LEAVE proc_label;" +
+                        " END IF;" +
+                        
+                        /* Save order ID of order to be moved */
+                        
+                        " SELECT `ORDER_TO_MOVE_OR_COPY`.`id` FROM `ORDER_TO_MOVE_OR_COPY` LIMIT 1 INTO @oldOrderID;" +
+                        
+                        /* Copy into the committed order table */
+                        
                         " INSERT INTO `check-please2`.`Committed_Orders` (`version`, `etp`, `pickupTime`, `price`, `customer_id`, `store_id`)" +
-                        " SELECT `uo`.`version`, `uo`.`etp`, `uo`.`pickupTime`, `uo`.`price`, `uo`.`customer_id`, `uo`.`store_id`" +
-                        " FROM `check-please2`.`UO` AS `uo`;" +
-                        " INSERT INTO `check-please2`.`Committed_Orders` (`version`, `etp`, `pickupTime`, `price`, `customer_id`, `store_id`)" +
-                        " SELECT `so`.`version`, `so`.`etp`, `so`.`pickupTime`, `so`.`price`, `so`.`customer_id`, `so`.`store_id`" +
-                        " FROM `check-please2`.`SO` AS `so`;" +           
+                        " SELECT `otmoc`.`version`, `otmoc`.`etp`, `otmoc`.`pickupTime`, `otmoc`.`price`, `otmoc`.`customer_id`, `otmoc`.`store_id`" +
+                        " FROM `check-please2`.`ORDER_TO_MOVE_OR_COPY` AS `otmoc`;" +
+                        
+                        " SET @newOrderID = LAST_INSERT_ID();" +
+                        " SELECT `ORDER_TO_MOVE_OR_COPY`.`scheduleDay` FROM `ORDER_TO_MOVE_OR_COPY` LIMIT 1 INTO @scheduleDay;" +
+                        
+                        " CREATE TEMPORARY TABLE `check-please2`.`ITEMS_TO_MOVE_OR_COPY`" +
+                        " SELECT DISTINCT uoi.*" +
+                        " FROM `check-please2`.`Uncommitted_Orders_Items` AS `uoi`, `check-please2`.`ORDER_TO_MOVE_OR_COPY` AS `otm`" +
+                        " WHERE `uoi`.`order_id` = `otm`.`id`;" +
+                        
+                        " UPDATE `check-please2`.`ITEMS_TO_MOVE_OR_COPY` SET `ITEMS_TO_MOVE_OR_COPY`.`order_id` = @newOrderID;" +
+                        
+                        /* Copy the items associated with the order(s) */
+                        
                         " INSERT INTO `check-please2`.`Committed_Orders_Items`" +
                         " SELECT `uoi`.`item_id`, `uoi`.`order_id`, `uoi`.`items_idx`" +
-                        " FROM `check-please2`.`UOI` AS `uoi`;" +
-                        " INSERT INTO `check-please2`.`Committed_Orders_Items`" +
-                        " SELECT `soi`.`item_id`, `soi`.`order_id`, `soi`.`items_idx`" +
-                        " FROM `check-please2`.`SOI` AS `soi`;" +           
-                        /* Removal step: (Uncommitted && Unscheduled) ==> (X) */
+                        " FROM `check-please2`.`ITEMS_TO_MOVE_OR_COPY` AS `uoi`;" +
+
+                        " IF @scheduleDay = 0 THEN" +
                         " DELETE `uo`" +
-                        " FROM `check-please2`.`Uncommitted_Orders` AS `uo`, `check-please2`.`UO` AS `uod`" +
-                        " WHERE `uo`.`id` = `uod`.`id`;" +           
+                        " FROM `check-please2`.`Uncommitted_Orders` AS `uo`, `check-please2`.`ORDER_TO_MOVE_OR_COPY` AS `otmoc`" +
+                        " WHERE `uo`.`id` = `otmoc`.`id`;" +   
+                        
                         " DELETE `uoi`" +
-                        " FROM `check-please2`.`Uncommitted_Orders_Items` AS `uoi`, `check-please2`.`UOI` AS `uoid`" +
-                        " WHERE `uoi`.`order_id` = `uoid`.`order_id`;" +           
-                        /* Update step: (Uncommitted && Scheduled && Moved) ==> pickupTime += 1 week */
+                        " FROM `check-please2`.`Uncommitted_Orders_Items` AS `uoi`, `check-please2`.`ORDER_TO_MOVE_OR_COPY` AS `otmoc`" +
+                        " WHERE `uoi`.`order_id` = `otmoc`.`id`;" +
+                        
+                        " ELSE" +
+                        
                         " UPDATE `check-please2`.`Uncommitted_Orders` AS `uo`" +
                         " SET `uo`.`pickupTime` = `uo`.`pickupTime` + INTERVAL 1 WEEK" +
-                        " WHERE `uo`.`id` IN (SELECT `id` FROM `check-please2`.`SO`);" +
-                        /* Return sleep time: SLEEP(MAXIMUM(0, NEXT PICKUP TIME)) */
-                        " SELECT GREATEST(0, IFNULL(1000*MIN(TIMESTAMPDIFF(SECOND, @NowDateTime, `uo`.`pickupTime`) - `uo`.`etp`), @OneDay))" +
+                        " WHERE `uo`.`id` = @oldOrderID;" +
+                        
+                        " END IF;" +
+                        
+                        " SET @x = -1;" +
+                        " SELECT COUNT(*) INTO @x FROM `check-please2`.`Uncommitted_Orders` AS `uo`" +
+                        " WHERE `uo`.`pickupTime` - INTERVAL `uo`.`etp` MINUTE < NOW() LIMIT 1;" +
+                        
+                        " IF @x > 0 THEN" +
+                        " SET `sleepTime` = 0;" +
+                        " LEAVE proc_label;" +
+                        " ELSE" +
+                        
+                        " SELECT LEAST(@OneDay, 1000*MIN(TIMESTAMPDIFF(SECOND, @NowDateTime, `uo`.`pickupTime`) - 60*`uo`.`etp`))" +
                         " INTO `sleepTime`" +
-                        " FROM `check-please2`.`Uncommitted_Orders` AS `uo`;" +           
+                        " FROM `check-please2`.`Uncommitted_Orders` AS `uo`;" +
+                        
+                        " END IF;" +
+                        
                         " END;";
 
         @Override
@@ -362,8 +396,6 @@ public enum StoredProcedures
             Connection conn = null;
             CallableStatement cs = null;
             long sleepTime = -1;
-            
-            final Long DATABASE_DISCONNECT_SLEEP_THRESHOLD = 60000L;
 
             try
             {
@@ -374,7 +406,7 @@ public enum StoredProcedures
                 cs.registerOutParameter(1, Types.BIGINT);
 
                 cs.execute();
-
+                
                 sleepTime = cs.getLong(1);
 
                 JSONObject result = new JSONObject();
@@ -390,11 +422,15 @@ public enum StoredProcedures
             }
             finally
             {
-                if (sleepTime > DATABASE_DISCONNECT_SLEEP_THRESHOLD)
-                    DatabaseAdapter.close(conn, cs);
+                DatabaseAdapter.close(conn, cs);
             }
         }
     };
+    
+    public static void main(String[] argv)
+    {
+        Process_Orders.call(null);
+    }
 
     private static final void executeStatement(String sql)
     {
@@ -428,18 +464,18 @@ public enum StoredProcedures
 
             cs = conn.prepareCall("{CALL " + ((isScheduled) ? StoredProcedures.Place_Scheduled_Order.name() : StoredProcedures.Place_New_Order.name()) + "(?, ?, ?, ?, ?, ?, ?)}");
             
-            cs.setString(1, (String) serverOrder.myItems.get(0).right());
-            cs.setLong(2, (Long) serverOrder.myItems.get(1).right());
-            cs.setString(3, (String) serverOrder.myItems.get(2).right());
-            cs.setDouble(4, ((BigDecimal) serverOrder.myItems.get(3).right()).doubleValue());
-            cs.setLong(5, (Long) serverOrder.myItems.get(4).right());
-            cs.setLong(6, (Long) serverOrder.myItems.get(5).right());
+            cs.setString(1, (String) serverOrder.myItems.get(0).value());
+            cs.setLong(2, (Long) serverOrder.myItems.get(1).value());
+            cs.setString(3, (String) serverOrder.myItems.get(2).value());
+            cs.setDouble(4, ((BigDecimal) serverOrder.myItems.get(3).value()).doubleValue());
+            cs.setLong(5, (Long) serverOrder.myItems.get(4).value());
+            cs.setLong(6, (Long) serverOrder.myItems.get(5).value());
             cs.registerOutParameter(7, Types.BIGINT);
 
             cs.execute();
             
-            serverOrder.myItems.add(new Pair<String, Object>(Uncommitted_Orders.id.name(), cs.getLong(7)));
-            serverOrder.myItems.add(new Pair<String, Object>(Uncommitted_Orders.version.name(), 0L));
+            serverOrder.myItems.add(new KeyValuePair(Uncommitted_Orders.id.name(), cs.getLong(7)));
+            serverOrder.myItems.add(new KeyValuePair(Uncommitted_Orders.version.name(), 0L));
             
             return serverOrder.toJSON();
         }

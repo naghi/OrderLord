@@ -24,24 +24,25 @@ public class Orderlord extends Thread
                 timeLastAsleep.setTime(new java.util.Date().getTime());
                 
                 Thread.sleep(sleepTime);
-                
-                tapCount = 1;
 
+                ++tapCount;
+                
                 while (tapCount > 0)
-                {
+                {                    
                     System.out.println("INFO -- Beginning to process orders...");
                     
                     sleepTime = StoredProcedures.Process_Orders.call(null).getLong(Extra.NONTABLE_FIELD_OM_SLEEP_TIME_IN_MILLISECONDS);
                     
                     System.out.println("INFO -- Received sleep time of " + sleepTime + " from Order_Processor");
                     
-                    --tapCount;
+                    tapCount -= (tapCount > 0) ? 1 : 0;
                 }
             }
             catch (InterruptedException e)
             {
                 System.out.println("INFO -- Waking up!");
                 sleepTime = 10;
+                ++tapCount;
             }
             catch (Exception e)
             {

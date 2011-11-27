@@ -28,11 +28,11 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
-import components.Tables.Customers;
-import components.Tables.Items;
-import components.Tables.Stores;
-import components.Tables.Uncommitted_Orders;
-import components.Tables.Uncommitted_Orders_Items;
+import components.Table.Customers;
+import components.Table.Items;
+import components.Table.Stores;
+import components.Table.Uncommitted_Orders;
+import components.Table.Uncommitted_Orders_Items;
 
 public enum Responder
 {   
@@ -167,8 +167,8 @@ public enum Responder
 
             try
             {
-                required.put(Tables.Customers.username.name(), fullCustomer.get(Tables.Customers.username.name()));
-                required.put(Tables.Customers.password.name(), fullCustomer.get(Tables.Customers.password.name()));
+                required.put(Table.Customers.username.name(), fullCustomer.get(Table.Customers.username.name()));
+                required.put(Table.Customers.password.name(), fullCustomer.get(Table.Customers.password.name()));
 
                 return required;
             }
@@ -191,14 +191,14 @@ public enum Responder
          * 
     @param parameters              Update_Account.parameters
          * 
-         * @param email            Customer's updated or unmodified email
-         * @param username         Customer's old username
-         * @param new_username     Customer's desired username (same as username if no change)
-         * @param password         Customer's old password
-         * @param new_password     Customer's desired password (same as password if no change)
-         * @param firstName        Customer's updated or unmodified first name
-         * @param lastName         Customer's updated or unmodified last name
-         * @param balance          Customer's updated or unmodified balance
+         * @param username         Customer's current username
+         * @param password         Customer's current password
+         * @param new_email        (Optional) Customer's desired new email
+         * @param new_username     (Optional) Customer's desired new username
+         * @param new_password     (Optional) Customer's new password
+         * @param new_firstName    (Optional) Customer's new first name
+         * @param new_lastName     (Optional) Customer's new last name
+         * @param new_balance      (Optional) Customer's new  balance
          * 
          */
         @Override
@@ -206,53 +206,76 @@ public enum Responder
         {
             try
             {
-            conn = (conn == null || conn.isClosed()) ? components.DatabaseAdapter.newConnection() : conn;
-
-            String sql =
-                    "UPDATE " +
-                            Customers.getName() +
-                            " SET " +
-                            Customers.email.name() + " = ?, " +
-                                    Customers.username.name() + " = ?, " +
-                                    Customers.password.name() + " = ?, " +
-                                    Customers.firstName.name() + " = ?, " +
-                                    Customers.lastName.name() + " = ? WHERE " +
-                                    Customers.username.name() + " = ? AND " +
-                                    Customers.password.name() + " = ?;";
-            
-            /* Leave new password the same if you don't want to change it! */
-            
-            ps = conn.prepareStatement(sql);
-            
-            ps.setString(1, parameters.getString(Customers.email.name()));
-            ps.setString(2, parameters.getString(Customers.username.name()));
-            ps.setString(3, parameters.getString(Extra.NONTABLE_FIELD_NEW_USERNAME));
-            ps.setString(4, parameters.getString(Extra.NONTABLE_FIELD_NEW_PASSWORD));
-            ps.setString(5, parameters.getString(Customers.firstName.name()));
-            ps.setString(6, parameters.getString(Customers.lastName.name()));
-            ps.setString(7, parameters.getString(Customers.username.name()));
-            ps.setString(8, parameters.getString(Customers.password.name()));
-            
-            int count = ps.executeUpdate();
-            
-            if (count == 0)
-                return null;
-            
-            String newUsername = parameters.getString(Extra.NONTABLE_FIELD_NEW_USERNAME);
-            String newPassword = parameters.getString(Extra.NONTABLE_FIELD_NEW_PASSWORD);
-            
-            parameters.remove(Customers.username.name());
-            parameters.remove(Customers.password.name());
-            parameters.remove(Extra.NONTABLE_FIELD_NEW_USERNAME);
-            parameters.remove(Extra.NONTABLE_FIELD_NEW_PASSWORD);
-            
-            parameters.put(Customers.username.name(), newUsername);
-            parameters.put(Customers.password.name(), newPassword);
-            
-            return parameters;
-            
+                conn = (conn == null || conn.isClosed()) ? components.DatabaseAdapter.newConnection() : conn;
+                
+                final KeyValuePair[] changeables =
+                    {
+                        new KeyValuePair(Extra.NONTABLE_FIELD_NEW_EMAIL, parameters.optString(Extra.NONTABLE_FIELD_NEW_EMAIL)),
+                        new KeyValuePair(Extra.NONTABLE_FIELD_NEW_USERNAME, parameters.optString(Extra.NONTABLE_FIELD_NEW_USERNAME)),
+                        new KeyValuePair(Extra.NONTABLE_FIELD_NEW_PASSWORD, parameters.optString(Extra.NONTABLE_FIELD_NEW_PASSWORD)),
+                        new KeyValuePair(Extra.NONTABLE_FIELD_NEW_FIRST_NAME, parameters.optString(Extra.NONTABLE_FIELD_NEW_FIRST_NAME)),
+                        new KeyValuePair(Extra.NONTABLE_FIELD_NEW_LAST_NAME, parameters.optString(Extra.NONTABLE_FIELD_NEW_LAST_NAME)),
+                        new KeyValuePair(Extra.NONTABLE_FIELD_NEW_BALANCE, parameters.optDouble(Extra.NONTABLE_FIELD_NEW_BALANCE))
+                    };
+                
+                final int totalChangeables = changeables.length;
+                
+                int shift[] = new int[totalChangeables];
+                
+                int last = -1;
+                int index = 0;
+                
+                for (KeyValuePair kvp : changeables)
+                {
+                    if (kvp.value() == null)
+                    {
+                        for (int i = 1 + index; i < totalChangeables; ++i)
+                            shift[i] += 1;
+                    }
+                    else last = index;
+                    
+                    ++index;
+                }
+                
+                if (last == -1) return null;
+                
+                String sql = "UPDATE " + Customers.getName() + " SET ";
+                
+                index = 0;
+                for (KeyValuePair kvp : changeables)
+                {
+                    sql += ((kvp.value() != null) ? kvp.key() + " = ?" + ((last != index) ? ", " : " ") : "");
+                    
+                    ++index;
+                }
+                
+                sql += " WHERE (" + Customers.username.name() + " = ? OR " + Customers.email.name() + " = ?)" +
+                        " AND " + Customers.password.name() + " = ?;";
+                
+                ps = conn.prepareStatement(sql);
+                
+                index = 0;
+                for (KeyValuePair kvp : changeables)
+                {
+                    if (kvp.value() instanceof String)
+                        ps.setString(index - shift[index], (String) kvp.value());
+                    
+                    else if (kvp.value() instanceof Double)
+                        ps.setDouble(index - shift[index], (Double) kvp.value());
+                    
+                    else return null;
+                    
+                    ++index;
+                }
+                
+                int count = ps.executeUpdate();
+                
+                if (count == 0)
+                    return null;
+                
+                return Login.execute(parameters);
             }
-            catch (SQLException | JSONException e)
+            catch (SQLException e)
             {
                 e.printStackTrace();
                 return null;
@@ -262,18 +285,24 @@ public enum Responder
                 DatabaseAdapter.close(conn, ps);
             }
         }
-
+        
         @Override
         public JSONObject sampleRequestInput()
         {
             try
-            {
-                JSONObject customer = Login.sampleResponseOutput();
+            {                
+                JSONObject result = new JSONObject();
                 
-                customer.put(Extra.NONTABLE_FIELD_NEW_USERNAME, "< Your new username or a copy of your current one if no update >");
-                customer.put(Extra.NONTABLE_FIELD_NEW_PASSWORD, "< Your new password or a copy of your current one if no password >");
+                result.put(Customers.username.name(), "(Required) myCurrentUsernameOrEmail");
+                result.put(Customers.password.name(), "(Required) myCurrentPassword");
+                result.put(Extra.NONTABLE_FIELD_NEW_EMAIL, "(Optional) new_email@mail.com");
+                result.put(Extra.NONTABLE_FIELD_NEW_USERNAME, "(Optional) pleaseBeAvailable001");
+                result.put(Extra.NONTABLE_FIELD_NEW_PASSWORD, "(Optional) myNeWPaZSW0rD");
+                result.put(Extra.NONTABLE_FIELD_NEW_FIRST_NAME, "(Optional) Jonathan");
+                result.put(Extra.NONTABLE_FIELD_NEW_LAST_NAME, "(Optional) Peters");
+                result.put(Extra.NONTABLE_FIELD_NEW_BALANCE, "(Optional) Double.MAX_VALUE");
                 
-                return customer;
+                return result;
             }
             catch (JSONException e)
             {
@@ -285,28 +314,7 @@ public enum Responder
         @Override
         public JSONObject sampleResponseOutput()
         {
-            try
-            {
-                JSONObject customer = Update_Account.sampleRequestInput();
-
-                String newUsername = customer.getString(Extra.NONTABLE_FIELD_NEW_USERNAME);
-                String newPassword = customer.getString(Extra.NONTABLE_FIELD_NEW_PASSWORD);
-
-                customer.remove(Customers.username.name());
-                customer.remove(Customers.password.name());
-                customer.remove(Extra.NONTABLE_FIELD_NEW_USERNAME);
-                customer.remove(Extra.NONTABLE_FIELD_NEW_PASSWORD);
-
-                customer.put(Customers.username.name(), newUsername);
-                customer.put(Customers.password.name(), newPassword);
-
-                return customer;
-            }
-            catch (JSONException e)
-            {
-                e.printStackTrace();
-                return null;
-            }
+            return Login.sampleResponseOutput();
         }
     },
     Delete_Account()
@@ -388,11 +396,11 @@ public enum Responder
                 DatabasePackage searchPackage = new DatabasePackage();
 
                 searchPackage.createSearchPackage(
-                        params.getDouble(Tables.Stores.latitude.name()),
-                        params.getDouble(Tables.Stores.longitude.name()),
+                        params.getDouble(Table.Stores.latitude.name()),
+                        params.getDouble(Table.Stores.longitude.name()),
                         params.getDouble(Extra.NONTABLE_FIELD_RADIUS_IN_MILES));
 
-                return StoredProcedures.Find_Stores_Within_Radius.call(searchPackage);
+                return StoredProcedures.Search_For_Stores.call(searchPackage);
             }
             catch (JSONException e)
             {
@@ -645,6 +653,7 @@ public enum Responder
          * @param password         Customer password associated with the order
          * @param pickupTime       Time to pick up the order
          * @param Items            List of items
+         * @param order_id         The ID of the order to be modified
          * 
          */
         @Override
@@ -652,20 +661,47 @@ public enum Responder
         {
             try
             {
-                if (Responder.Delete_Order.execute(parameters) != null)
-                {
-                    if (parameters.getInt(Uncommitted_Orders.scheduleDay.name()) == 0)
-                    {
-                        return Responder.Submit_Nonscheduled_Order.execute(parameters);
-                    }
-                    else return Responder.Submit_Scheduled_Order.execute(parameters);
-                }
+                conn = (conn == null || conn.isClosed()) ? components.DatabaseAdapter.newConnection() : conn;
+                
+                String sql =
+                        "SELECT DISTINCT uo.* FROM " +
+                                Uncommitted_Orders.getName() + " AS uo, " +
+                                Customers.getName() + " AS cu" +
+                                " WHERE uo." + Uncommitted_Orders.id.name() + " = ?" + 
+                                " AND uo." + Uncommitted_Orders.customer_id.name() +
+                                " IN(SELECT cust." + Customers.id.name() +
+                                " FROM " + Customers.getName() +
+                                " AS cust WHERE " +
+                                Customers.username.name() + " = ? AND " + Customers.password.name() + " = ?)";
+                
+                ps = conn.prepareStatement(sql);
+                
+                ps.setLong(1, parameters.getLong(Uncommitted_Orders_Items.order_id.name()));
+                
+                rs = ps.executeQuery();
+                
+                JSONArray result = DatabaseAdapter.resultSetToJSONArray(rs);
+                
+                if (result == null || result.length() == 0)
+                    return null;
+                
+                JSONObject orderToUpdate = result.getJSONObject(0);
+                
+                int scheduleDay = orderToUpdate.getInt(Uncommitted_Orders.scheduleDay.name());
+                
+                Responder.Delete_Order.execute(parameters);
+                
+                return (scheduleDay > 0) ? Responder.Submit_Scheduled_Order.execute(parameters) : Responder.Submit_Nonscheduled_Order.execute(parameters);
             }
-            catch (JSONException e)
+            catch (JSONException | SQLException e)
             {
                 e.printStackTrace();
+                return null;
             }
-            return null;
+            finally
+            {
+                DatabaseAdapter.close(conn, ps, rs);
+            }
         }
 
         @Override
@@ -717,7 +753,9 @@ public enum Responder
             {
                 conn = (conn == null || conn.isClosed()) ? components.DatabaseAdapter.newConnection() : conn;
 
-                String sql = "DELETE FROM " + Uncommitted_Orders.getName() + "AS `uo` WHERE `uo`." + Uncommitted_Orders.id.name() + " = ? AND `uo`." + Uncommitted_Orders.customer_id.name() + " = ?;";
+                String sql = "DELETE FROM " + Uncommitted_Orders.getName() + " WHERE " + Uncommitted_Orders.id.name() + " = ? AND " + Uncommitted_Orders.customer_id.name() + " = ?";
+                
+                System.out.println("INFO -- Preparing delete statement: " + sql);
                 
                 ps = conn.prepareStatement(sql);
                 
@@ -769,7 +807,7 @@ public enum Responder
 
             try
             {
-                for (Class<?> t : Tables.list)
+                for (Class<?> t : Table.list)
                     result.put(t.getSimpleName(), Responder_Helper.getColumnNamesAndTypes(t.getSimpleName()));
             }
             catch (JSONException e)
@@ -809,7 +847,7 @@ public enum Responder
                 conn = (conn == null || conn.isClosed()) ? components.DatabaseAdapter.newConnection() : conn;
                 
                 String q = "";
-                for (Class<?> t : Tables.list)
+                for (Class<?> t : Table.list)
                 {        
                     q = "SELECT * FROM " + t.getSimpleName() + ";";
                     
@@ -892,10 +930,10 @@ final class Responder_Helper
                 return null;
 
             JSONArray items = clientOrder.getJSONArray(Items.getName());
-
-            /* Security: Regather items in case client forged them.
+            
+            /* For security purposes,
              * 
-             * Only trust the IDs
+             * Only use the item IDs for calculations
              */
 
             conn = (conn == null || conn.isClosed()) ? components.DatabaseAdapter.newConnection() : conn;
@@ -1007,31 +1045,27 @@ final class Responder_Helper
             return null;
 
         try
-        {
-            final String f1 = Customers.username.name();
-            final String a1 = params.getString(f1);
-
-            final String f2 = Customers.password.name();
-            final String a2 = params.getString(f2);
-
-            if (a1 == null || a2 == null || a1.equals("") || a2.equals(""))
-                return null;
-
-            final String sql = "SELECT * FROM " + Customers.getName() + " WHERE " + f1 + " = ? AND " + f2 + " = ?";
-
+        {            
+            final String sql =
+                    "SELECT * FROM " +
+                            Customers.getName() +
+                            " WHERE (" + Customers.username.name() +
+                            " = ? OR " + Customers.email.name() +
+                            " = ?) AND " +
+                            Customers.password.name() + " = ?";
+            
             ps = connection.prepareStatement(sql);
-
-            ps.setString(1, a1);
-            ps.setString(2, a2);
-
-            System.out.println(ps);
+            
+            ps.setString(1, params.getString(Customers.username.name()));
+            ps.setString(2, params.getString(Customers.username.name()));
+            ps.setString(3, params.getString(Customers.password.name()));
 
             rs = ps.executeQuery();
 
-            JSONObject result = new JSONObject();
-
             if (rs.next())
             {
+                JSONObject result = new JSONObject();
+                
                 result.put(Customers.id.name(), rs.getLong(Customers.id.name()));
                 result.put(Customers.version.name(), rs.getLong(Customers.version.name()));
                 result.put(Customers.email.name(), rs.getString(Customers.email.name()));
@@ -1040,9 +1074,10 @@ final class Responder_Helper
                 result.put(Customers.firstName.name(), rs.getString(Customers.firstName.name()));
                 result.put(Customers.lastName.name(), rs.getString(Customers.lastName.name()));
                 result.put(Customers.balance.name(), rs.getDouble(Customers.balance.name()));
+                
+                return result;
             }
-
-            return result.length() > 0 ? result : null;
+            else return null;
         }
         catch (JSONException | SQLException e)
         {
@@ -1110,7 +1145,7 @@ final class Responder_Helper
                 int currentRandom = r.nextInt(Math.abs(r.nextInt()));
                 String email = "email" + currentRandom + "@mail.com";
                 String username = "User_" + currentRandom;
-                String password = Tables.Customers.password.name().toUpperCase();
+                String password = Table.Customers.password.name().toUpperCase();
                 String firstName = "Fake";
                 String lastName = "Name";
                 Double balance = 1000000.00D;

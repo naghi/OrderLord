@@ -17,7 +17,7 @@
            <!--  /a>-->
         	<div style="float: right; width: 500px; margin-top:80px;"><text style="font-weight:bold; font-size:24px; color:rgb(160,50,110)">The Orderlord welcomes you!</text></div>
         </div>
-        <div style="margin-left: 50px; width: 100px;">ver. 0.94</div>
+        <div style="margin-left: 50px; width: 100px;">ver. 1.0</div>
         
         <!-- g:render template="/layouts/header" /-->
 

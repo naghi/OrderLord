@@ -89,6 +89,8 @@ CREATE INDEX `corders_put_index` ON `check-please2`.`Committed_Orders` (`pickupT
 
 CREATE TABLE `check-please2`.`Committed_Orders_Items`
 (
+
+
     `item_id` BIGINT UNSIGNED NOT NULL,
         FOREIGN KEY (`item_id`)
         REFERENCES `check-please2`.`Items`(`id`)

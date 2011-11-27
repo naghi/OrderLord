@@ -6,12 +6,12 @@
         <meta name="layout" content="main" />
         <g:set var="entityName" value="${message(code: 'activeorder.label', default: 'Activeorder')}" />
         <title><g:message code="default.list.label" args="[entityName]" /></title>
+        
         <script type="text/javascript">
-        	function checkDB()
+        	function ajaxrefresh()
         	{
         		var xmlhttp;
-        		var xmlDoc;
-        		var x;
+        		
         		if (window.XMLHttpRequest)
         		{// code for IE7+, Firefox, Chrome, Opera, Safari
         		  xmlhttp=new XMLHttpRequest();
@@ -25,18 +25,8 @@
         		  {
         		  if (xmlhttp.readyState==4 && xmlhttp.status==200)
         		    {
-        			xmlDoc=xmlhttp.responseText;
-        			//alert("aaaaaaa")
-        			//alert(xmlDoc)
-        			x=xmlDoc.getElementsByTagName("table");
-        			//alert(x)
-        			//alert("bbbbbb")
-        			for (i=0;i<x.length;i++)
-        		      {
-        		      txt = x[i].childNodes[0].nodeValue;
-        		      }
-        			//alert(txt)    			  
-        		    document.getElementById("refreshTable").innerHTML=txt;
+        			//alert("aaaaaaa") 			  
+        		    document.getElementById("myDiv").innerHTML=xmlhttp.responseText;
         		    }
         		  else
         			  {
@@ -45,26 +35,31 @@
         			  }
         		  }
         		
-        		xmlhttp.open("GET","http://localhost:8080/Orderlord/checkdb/checkdb",true);
+        		xmlhttp.open("GET","http://${localHostAddress}:12080/Orderlord/refresh/refreshactiveorders",true);
+        		//xmlhttp.open("GET","http://107.20.135.212:12080/Orderlord/refresh/refreshactiveorders",true);
         		xmlhttp.send();
+
+        		var t=setTimeout(ajaxrefresh,4000); //***
             }
-        	window.load = checkDB();
+
+        	window.load = ajaxrefresh();
         </script>
+        
     </head>
     
+    <!-- body onLoad="ajaxrefresh();"-->
     <body>
     
-      <!-- div id="myDiv"></div-->
-      <!-- button type="button" onclick="checkDB()">Inject Content</button-->
-      
         <div class="nav">
             <span class="menuButton"><a class="home" href="${createLink(uri: '/')}"><g:message code="default.home.label"/></a></span>
            <g:if test="${session?.store?.admin}">
             <span class="menuButton"><g:link class="create" action="create"><g:message code="default.new.label" args="[entityName]" /></g:link></span>
            </g:if>
         </div>
-        <div class="body">
-            <h1><g:message code="default.list.label" args="[entityName]" /></h1>
+        
+        <div class="body" id="myDiv">
+            <!-- h1><g:message code="default.list.label (ordered by ascending pickTime)" args="[entityName]" /></h1-->
+            <h1><g:message code="Activeorder List (ordered by ascending pickupTime)" args="[entityName]" /></h1>
             <g:if test="${flash.message}">
             <div class="message">${flash.message}</div>
             </g:if>
@@ -72,18 +67,20 @@
                 <table>
                     <thead>
                         <tr>
-                           <g:if test="${session?.store?.admin}">
-                            <g:sortableColumn property="id" title="${message(code: 'activeorder.id.label', default: 'Id')}" />
-                           </g:if>
-                            <g:sortableColumn property="pickupTime" title="${message(code: 'activeorder.pickupTime.label', default: 'Pickup Time')}" />
                         
-                            <g:sortableColumn property="orderEtp" title="${message(code: 'activeorder.orderEtp.label', default: 'Order Etp')}" />
-                        
-                            <g:sortableColumn property="totalCost" title="${message(code: 'activeorder.totalCost.label', default: 'Total Cost')}" />
-                        
-                            <th><g:message code="activeorder.customer.label" default="Customer" /></th>
-                        
-                            <th><g:message code="activeorder.store.label" default="Store" /></th>
+		                   <g:if test="${session?.store?.admin}">
+		                    <!-- g:sortableColumn property="id" title="${message(code: 'activeorder.id.label', default: 'Id')}" /-->
+		                    <th><g:message code="activeorder.id.label" default="Id" /></th>
+		                   </g:if>
+		                    <th><g:message code="activeorder.pickupTime.label" default="Pickup Time" /></th>
+		                
+		                    <th><g:message code="activeorder.orderEtp.label" default="Order ETP" /></th>
+		                
+		                    <th><g:message code="activeorder.totalCost.label" default="Total Cost" /></th>
+		                
+		                    <th><g:message code="activeorder.customer.label" default="Customer" /></th>
+		                
+		                    <th><g:message code="activeorder.store.label" default="Store" /></th>
                         
                         </tr>
                     </thead>
@@ -116,5 +113,6 @@
                 <g:paginate total="${activeorderInstanceTotal}" />
             </div>
         </div>
+        
     </body>
 </html>

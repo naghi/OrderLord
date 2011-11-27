@@ -40,7 +40,7 @@ class AuthenticationController {
 			flash.message = "Store ${store.login} has logged in!" //*** change to store name
 			redirect(action:"index")
 		}else{
-			flash.message = "Store ${params.login} not found in the database. Please try again."
+			flash.message = "Store ${params.login}: Wrong login and/or password! Please try again."
 			redirect(action:"login")
 		}
 	}

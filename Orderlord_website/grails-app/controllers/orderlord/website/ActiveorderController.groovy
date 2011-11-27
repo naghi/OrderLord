@@ -5,7 +5,7 @@ class ActiveorderController {
     static allowedMethods = [save: "POST", update: "POST", delete: "POST"]
 	
 	def orderCalculatorService
-	
+	def localHostFinderService
 	
 //	void callFlashMessage(String minTime, String maxTime){
 //		flash.message = "The specified time does not fall between the allowed values of '${minTime}' and '${maxTime}'"
@@ -24,14 +24,23 @@ class ActiveorderController {
 			render ("You don't have permissions to access this resource or you are not logged in!")
 			return
 		}
-			
-		def storeid = session.store.id
-		def activeorders = Activeorder.findAllByStore(Store.load(storeid))
 		
-		if (session?.store?.admin)
-			[activeorderInstanceList: Activeorder.list(params), activeorderInstanceTotal: Activeorder.count()]
-		else if (!session?.store?.admin)
-			[activeorderInstanceList: activeorders, activeorderInstanceTotal: activeorders.count()]
+		def localHostAddress = localHostFinderService.figureOutLocalHostAddress()
+		
+		def viewType = "list"
+		if (params.refreshType == "ajax")
+			viewType = "activebody"
+			
+		if (session?.store?.admin){
+			render(view: "${viewType}", model: [localHostAddress: localHostAddress, activeorderInstanceList: Activeorder.list(params), activeorderInstanceTotal: Activeorder.count()])
+//			return
+		}
+		else if (!session?.store?.admin){
+			def storeid = session.store.id
+			def activeorders = Activeorder.findAllByStore(Store.load(storeid))
+			render(view: "${viewType}", model: [localHostAddress: localHostAddress, activeorderInstanceList: activeorders, activeorderInstanceTotal: activeorders.count()])
+//			return
+		}
     }
 
     def create = {
@@ -109,11 +118,16 @@ class ActiveorderController {
 			activeorderInstance.figureOutPickupTime()
 				
             if (!activeorderInstance.hasErrors() && activeorderInstance.save(flush: true)) {
-                flash.message = "${message(code: 'default.updated.message', args: [message(code: 'activeorder.label', default: 'Activeorder'), activeorderInstance.id])}"
-                redirect(action: "show", id: activeorderInstance.id)
+				if (activeorderInstance.orderEtp == 0)
+					flash.message = "Activeorder ${activeorderInstance.id} updated. No items were selected!"
+				else
+					flash.message = "${message(code: 'default.updated.message', args: [message(code: 'activeorder.label', default: 'Activeorder'), activeorderInstance.id])}"
+				redirect(action: "show", id: activeorderInstance.id)
+				return
             }
             else {
                 render(view: "edit", model: [activeorderInstance: activeorderInstance])
+				return
             }
         }
         else {

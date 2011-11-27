@@ -9,13 +9,13 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
 
-import components.Tables.Items;
-import components.Tables.Stores;
-import components.Tables.Uncommitted_Orders;
+import components.Table.Items;
+import components.Table.Stores;
+import components.Table.Uncommitted_Orders;
 
 public class DatabasePackage
 {   
-    protected LinkedList<Pair<String, Object>> myItems = null;
+    protected LinkedList<KeyValuePair> myItems = null;
     
     public DatabasePackage createServerOrderPackage(String items, Long etp, String pickupTime, BigDecimal price, Long customer_id, Long store_id)
     {
@@ -26,14 +26,14 @@ public class DatabasePackage
             return null;
         }
         
-        myItems = new LinkedList<Pair<String, Object>>();
+        myItems = new LinkedList<KeyValuePair>();
         
-        myItems.add(new Pair<String, Object>(Items.getName(), items));
-        myItems.add(new Pair<String, Object>(Uncommitted_Orders.etp.name(), etp));
-        myItems.add(new Pair<String, Object>(Uncommitted_Orders.pickupTime.name(), pickupTime));
-        myItems.add(new Pair<String, Object>(Uncommitted_Orders.price.name(), price));
-        myItems.add(new Pair<String, Object>(Uncommitted_Orders.customer_id.name(), customer_id));
-        myItems.add(new Pair<String, Object>(Uncommitted_Orders.store_id.name(), store_id));
+        myItems.add(new KeyValuePair(Items.getName(), items));
+        myItems.add(new KeyValuePair(Uncommitted_Orders.etp.name(), etp));
+        myItems.add(new KeyValuePair(Uncommitted_Orders.pickupTime.name(), pickupTime));
+        myItems.add(new KeyValuePair(Uncommitted_Orders.price.name(), price));
+        myItems.add(new KeyValuePair(Uncommitted_Orders.customer_id.name(), customer_id));
+        myItems.add(new KeyValuePair(Uncommitted_Orders.store_id.name(), store_id));
         
         return this;
     }
@@ -46,11 +46,11 @@ public class DatabasePackage
             return null;
         }
         
-        myItems = new LinkedList<Pair<String, Object>>();
+        myItems = new LinkedList<KeyValuePair>();
         
-        myItems.add(new Pair<String, Object>(Stores.latitude.name(), latitude));
-        myItems.add(new Pair<String, Object>(Stores.longitude.name(), latitude));
-        myItems.add(new Pair<String, Object>(Extra.NONTABLE_FIELD_RADIUS_IN_MILES, radius_in_miles));
+        myItems.add(new KeyValuePair(Stores.latitude.name(), latitude));
+        myItems.add(new KeyValuePair(Stores.longitude.name(), latitude));
+        myItems.add(new KeyValuePair(Extra.NONTABLE_FIELD_RADIUS_IN_MILES, radius_in_miles));
         
         return this;
     }
@@ -66,8 +66,8 @@ public class DatabasePackage
 
         try
         {
-            for (Pair<String, Object> p : myItems)
-                result.put(p.left(), p.right());
+            for (KeyValuePair p : myItems)
+                result.put(p.key(), p.value());
 
             return result;
         }

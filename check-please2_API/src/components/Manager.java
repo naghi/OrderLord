@@ -5,8 +5,6 @@ package components;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
-import components.Tables.Uncommitted_Orders;
-
 public class Manager
 {
     private static boolean started = false;
@@ -38,12 +36,17 @@ public class Manager
         if (processor == null || !processor.isAlive())
             return "$$ Processor is INACTIVE $$";
         
-        else return "$$ Processor is ACTIVE $$\n"
-                + "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n"
-                + ">> Status: " + processor.getState() + "\n"
-                + ">> Last sleep: " + processor.timeLastAsleep() + "\n"
-                + ">> Next awakening: " + processor.nextWakeTime() + "\n"
-                + "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n";
+        else
+            {
+            return "$$ Processor is ACTIVE $$"
+                    
+                + "\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+                + "\n>> Status: " + processor.getState()
+                + "\n>> Last sleep: " + processor.timeLastAsleep()
+                + "\n>> Current time: " + new java.util.Date().toString()
+                + "\n>> Next awakening: " + processor.nextWakeTime()
+                + "\n>> Time remaining: " + (( processor.nextWakeTime().getTime() - new java.util.Date().getTime() ) / ( 1000 * 60 )) + " minutes";
+            }
     }
     
     public void handlePing()
@@ -59,9 +62,9 @@ public class Manager
     
     public JSONObject handleOrderUpdate(JSONObject clientOrder)
     {
-        JSONObject result = Responder.Update_Order.execute(clientOrder);
-        
         processor.tapDat();
+        
+        JSONObject result = Responder.Update_Order.execute(clientOrder);
         
         return result;
     }
@@ -71,9 +74,6 @@ public class Manager
         @SuppressWarnings("unused")
         boolean isScheduled;
         
-        if (clientOrder.getInt(Uncommitted_Orders.scheduleDay.name()) == 0)
-            return null;
-        
         return orderHandler(clientOrder, isScheduled = false);
     }
 
@@ -82,10 +82,7 @@ public class Manager
         @SuppressWarnings("unused")
         boolean isScheduled;
         
-        if (clientOrder.getInt(Uncommitted_Orders.scheduleDay.name()) != 0)
-            return null;
-        
-        else return orderHandler(clientOrder, isScheduled = true);
+        return orderHandler(clientOrder, isScheduled = true);
     }
     
     private JSONObject orderHandler(JSONObject clientOrder, boolean isScheduled)
@@ -102,5 +99,19 @@ public class Manager
             return order;
         }
         return null;
+    }
+
+    public void partysOver()
+    {
+        int interrupt_count = 0;
+        
+        if (started)
+        {
+            while (processor.isAlive() && interrupt_count < Integer.MAX_VALUE)
+            {
+                processor.interrupt();
+                ++interrupt_count;
+            }
+        }
     }
 }

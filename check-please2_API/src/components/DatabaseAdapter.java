@@ -16,7 +16,7 @@ public class DatabaseAdapter
     private static final String mySQL_userName = "check-please2";
     private static final String mySQL_password = "!checkPlease!@";
     private static final String mySQL_JDBC_Driver = "com.mysql.jdbc.Driver";
-
+    
     public static Connection newConnection()
     {   
         try

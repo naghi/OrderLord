@@ -97,6 +97,32 @@ class BootStrap {
 				println customer6.errors
 			}
 			
+			def customer7 = new Customer(
+				userName:"customer7",
+				password:"admin",
+				firstName:"Testing",
+				lastName:"Rocks",
+				email:"customer7@gmail.com",
+				balance:70000.00,
+				)
+			customer7.save()
+			if(customer7.hasErrors()){
+				println customer7.errors
+			}
+			
+			def customer8 = new Customer(
+				userName:"customer8",
+				password:"admin",
+				firstName:"Debugging",
+				lastName:"Sucks",
+				email:"customer8@gmail.com",
+				balance:80000.00,
+				)
+			customer8.save()
+			if(customer8.hasErrors()){
+				println customer8.errors
+			}
+			
 			//end of customers
 			
 			//Stores ///////////////////////////////////////////////////////////
@@ -531,40 +557,40 @@ class BootStrap {
 					println pendingorder6.errors
 				}
 				
-				def pendingorder4 = new Pendingorder(
-					orderType:"One-Time-Order",
-					pickupTime:new Date(),
-					store:store1,
-					customer:customer6,
-					)
-				.addToItems(item1)
-				.addToItems(item2)
-				pendingorder4.totalCost = orderCalculatorService.calculateTotalCost(pendingorder4.items)
-				pendingorder4.orderEtp = orderCalculatorService.calculateOrderEtp(pendingorder4.items)
-				pendingorder4.figureOutScheduleDay()
-				
-				pendingorder4.save()
-				if(pendingorder4.hasErrors()){
-					println pendingorder4.errors
-				}
-				
-				def pendingorder5 = new Pendingorder(
-					orderType:"Scheduled-Order",
-					pickupTime:new Date(),
-					store:store2,
-					customer:customer6,
-					)
-				.addToItems(item4)
-				.addToItems(item6)
-				.addToItems(item7)
-				pendingorder5.totalCost = orderCalculatorService.calculateTotalCost(pendingorder5.items)
-				pendingorder5.orderEtp = orderCalculatorService.calculateOrderEtp(pendingorder5.items)
-				pendingorder5.figureOutScheduleDay()
-				
-				pendingorder5.save()
-				if(pendingorder5.hasErrors()){
-					println pendingorder5.errors
-				}
+//				def pendingorder4 = new Pendingorder(
+//					orderType:"One-Time-Order",
+//					pickupTime:new Date(),
+//					store:store1,
+//					customer:customer6,
+//					)
+//				.addToItems(item1)
+//				.addToItems(item2)
+//				pendingorder4.totalCost = orderCalculatorService.calculateTotalCost(pendingorder4.items)
+//				pendingorder4.orderEtp = orderCalculatorService.calculateOrderEtp(pendingorder4.items)
+//				pendingorder4.figureOutScheduleDay()
+//				
+//				pendingorder4.save()
+//				if(pendingorder4.hasErrors()){
+//					println pendingorder4.errors
+//				}
+//				
+//				def pendingorder5 = new Pendingorder(
+//					orderType:"Scheduled-Order",
+//					pickupTime:new Date(),
+//					store:store2,
+//					customer:customer6,
+//					)
+//				.addToItems(item4)
+//				.addToItems(item6)
+//				.addToItems(item7)
+//				pendingorder5.totalCost = orderCalculatorService.calculateTotalCost(pendingorder5.items)
+//				pendingorder5.orderEtp = orderCalculatorService.calculateOrderEtp(pendingorder5.items)
+//				pendingorder5.figureOutScheduleDay()
+//				
+//				pendingorder5.save()
+//				if(pendingorder5.hasErrors()){
+//					println pendingorder5.errors
+//				}
 				
 				//end of pending orders
 				
